@@ -1,28 +1,28 @@
-#!/Library/Frameworks/Python.framework/Versions/3.6/bin/python3
+#!/lib/anaconda3/bin/python3.7
 
 # Start html output.
-print ("Content-type: text/html \n")
+print ( "Content-type: text/html\n" )
 print ( "<html><head>" )
 print ( "<title>Results</title>" ) 
 print ( "</head><body>" )
 
-import os
 import sys
+print ( sys.version + '<br>' )
 
 import re
 import cgi
 import smtplib
 from email.mime.text import MIMEText
 
-# Add the path to util scripts.
-#sys.path.append("/Users/B_Team_iMac/Sites/cgi-bin/python_dependencies/3.6/util_scripts/")
-sys.path.append( "{}/../python_dependencies/3.6/util_scripts/".format(os.getcwd()) )
+CGI_BIN_PATH = "/var/www/cgi-bin"
+
+# Add the path to util scripts. 
+sys.path.append( "{}/depend/util_scripts/".format(CGI_BIN_PATH) )
 import sequence_utils
 import mailer
 
-# Add the path to openpyxl. 
-#sys.path.append("/Users/B_Team_iMac/Sites/cgi-bin/python_dependencies/libraries/")
-sys.path.append( "{}/../python_dependencies/libraries/".format(os.getcwd()) )
+# Add the path to openpyxl.
+sys.path.append( "{}/depend/libraries/".format(CGI_BIN_PATH) )
 from openpyxl import Workbook
 import openpyxl
 
@@ -37,7 +37,7 @@ file_item = form['file']  # Get the file item
 # Check if the file was submitted to the form.
 if file_item.filename:
 	# Read the file's text.
-	input_field_text = [e+'\n' for e in str( file_item.value.decode("utf-8") ).replace('\r', '\n').split('\n') if e]
+	input_field_text = [e+'\n' for e in str( file_item.value.decode("utf-8") ).replace('\r', '\n').replace('\n\n', '\n').split('\n') if e]
 	
 else:
 	# Get user input string and convert it into a list of lines.
@@ -53,46 +53,6 @@ index = 0
 for tuple in fasta_list:
 	fasta_list[index] = (tuple[0], tuple[1].upper())
 	index += 1
-
-
-#### Test data and give user any warnings.
-
-
-# Check seq validity.  (Invalid characters)
-seq_is_valid = True
-for dna_seq in fasta_list:
-	report = sequence_utils.invalid_in_sequence(dna_seq[1])
-	if report[0] == False:
-		print ( "<b><r style=\"color: orange;\">Warning:</r> Invalid characters have been detected in some inputted sequences.</b>  Consider using the <a href=\"http://brockman-srv.mbb.sfu.ca/~B_Team_iMac/quality_check/\">quality check tool</a> to identify more problems.  (Note: some warning tests can't be run with invalid sequences.)<br>" )
-		seq_is_valid = False
-		break
-
-# Run div by 3 test.
-for dna_seq in fasta_list:
-	if sequence_utils.seq_div3_test(dna_seq[1])[0] == False:
-		print ( "<b><r style=\"color: orange;\">Warning:</r> Some sequences are indivisible by 3.</b>  Consider using the <a href=\"http://brockman-srv.mbb.sfu.ca/~B_Team_iMac/quality_check/\">quality check tool</a> to better identify the problem.<br>" )
-		break
-
-# Run the start codon test. (if seq is valid)
-if seq_is_valid == True:
-	for dna_seq in fasta_list:
-		if sequence_utils.seq_start_test(dna_seq[1])[0] == False:
-			print ( "<b><r style=\"color: orange;\">Warning:</r> Some sequences don't have a proper start codon.</b>  Consider using the <a href=\"http://brockman-srv.mbb.sfu.ca/~B_Team_iMac/quality_check/\">quality check tool</a> to better identify the problem.<br>" )
-			break
-
-# Run the end codon test. (if seq is valid)
-if seq_is_valid == True:
-	for dna_seq in fasta_list:
-		if sequence_utils.seq_stop_test(dna_seq[1])[0] == False:
-			print ( "<b><r style=\"color: orange;\">Warning:</r> Some sequences don't have a proper end codon.</b>  Consider using the <a href=\"http://brockman-srv.mbb.sfu.ca/~B_Team_iMac/quality_check/\">quality check tool</a> to better identify the problem.<br>" )
-			break
-
-# Run the internal end codon test. (if seq is valid)
-if seq_is_valid == True:
-	for dna_seq in fasta_list:
-		if sequence_utils.seq_internal_test(dna_seq[1])[0] == False:
-			print ( "<b><r style=\"color: orange;\">Warning:</r> Some sequences contain internal end codons.</b>  Consider using the <a href=\"http://brockman-srv.mbb.sfu.ca/~B_Team_iMac/quality_check/\">quality check tool</a> to better identify the problem.<br>" )
-			break
 
 
 ##### Fill the DNA sequence dictionary.
@@ -130,7 +90,7 @@ amino_acid_sequences_dict = {}  # store all unique dna sequences and their name.
 for tuple in fasta_list:
 	is_sequence_unique = True
 
-	amino_acid_sequence = sequence_utils.translate_nuc( tuple[1], 0 )  # Convert the dna part of the sequence into an amino acid sequence.  #TODO: is 0 ok?
+	amino_acid_sequence = sequence_utils.translate_nuc( tuple[1], 0 )  # Convert the dna part of the sequence into an amino acid sequence.
 
 	# Iterate through all the current unique amino acid sequences.
 	for key in amino_acid_sequences_dict:
@@ -147,20 +107,36 @@ for tuple in fasta_list:
 		amino_acid_sequences_dict[ amino_acid_sequence ] = [ tuple[0] ]  # Add a amino acid sequence to the dict and add the id at [0].
 
 
-##### Calculate the repetitions variable.
+##### Output the immediate results to the webpage.
 
 
 most_DNA_repetitions = 0  # This holds the most repetitions for any sequence.
+
+# Format and print console output.
 for key, value in list( dna_sequences_dict.items() ):
+	#index += 1
+	#sequence_id = index  # The sequence number.
 	repetitions = len(value)
+	#identical_sequence_list = value  # This list holds all the names of identical sequences.
+	##dna_sequence = key  # The key is the actual dna string.
+		
+	##print ( "Sequence {} is repeated {} times : {} <br>".format(sequence_id, repetitions, identical_sequence_list) )
 
 	# Check for largest repetitions value.
 	if repetitions > most_DNA_repetitions:
 		most_DNA_repetitions = repetitions
 
 most_amino_acid_repetitions = 0  # This holds the most repetitions for any sequence.
+
+# Format and print console output.
 for key, value in list( amino_acid_sequences_dict.items() ):
+	#index += 1
+	#sequence_id = index  # The sequence number.
 	repetitions = len(value)
+	#identical_sequence_list = value  # This list holds all the names of identical sequences.
+	##amino_acid_sequence = key  # The key is the actual amino acid string.
+	
+	##print ( "Sequence {} is repeated {} times : {} <br>".format(sequence_id, repetitions, identical_sequence_list) )
 
 	# Check for largest repetitions value.
 	if repetitions > most_amino_acid_repetitions:
@@ -181,6 +157,7 @@ ws.append( ["Number", "Frequency", "Sequence", "Sequence Length", "Unique Sequen
 
 # Create data row information.
 index = 0
+##for key, value in list( sorted(dna_sequences_dict.items(), key=lambda (k,v): (-len(v),k)) ):
 for key, value in list( sorted( dna_sequences_dict.items(), key=lambda t: (-len(t[1]), t[0]) ) ):
 	index += 1
 	sequence_id = index  # The sequence number.
@@ -191,7 +168,6 @@ for key, value in list( sorted( dna_sequences_dict.items(), key=lambda t: (-len(
 	
 	ws.append( [sequence_id, repetitions, dna_sequence, sequence_length] + identical_sequence_list )
 
-# Create a new worksheet.
 ws2 = wb.create_sheet("Mysheet")
 ws2.title = "Amino Acid Sequences"
 
@@ -200,6 +176,7 @@ ws2.append( ["Number", "Frequency", "Sequence", "Sequence Length", "Unique Seque
 
 # Create data row information.
 index = 0
+#for key, value in list( sorted(amino_acid_sequences_dict.items(), key=lambda k,v: (-len(v),k)) ):
 for key, value in list( sorted(amino_acid_sequences_dict.items(), key=lambda t: (-len(t[1]), t[0])) ):
 	index += 1
 	sequence_id = index  # The sequence number.
@@ -229,13 +206,11 @@ msg_body = "The included .xlsx file ({}.xlsx) contains the requested sequence da
 if mailer.send_sfu_email("unique_sequence_finder", email_address_string, "Unique Sequence Finder Results", msg_body, [xlsx_file]) == 0:
 	print ( "An email has been sent to <b>{}</b> with a full table of results. <br>Make sure <b>{}</b> is spelled correctly.".format(email_address_string, email_address_string) )
 
-# Check if email is formatted correctly.
+
+##### Check if email is formatted correctly.
+
+
 if not re.match(r"[^@]+@[^@]+\.[^@]+", email_address_string):
 	print ( "<br><br> Your email address (<b>{}</b>) is likely spelled incorrectly, please re-check its spelling.".format(email_address_string) )
 
-# Draw a line under the message.
-print ( "<br><br>" )
-print ( "--"*35 )
-
-print ( "<br><br> python version: " + sys.version)  # Print version number.
 print ( "</body></html>" )  # Complete the html output.
